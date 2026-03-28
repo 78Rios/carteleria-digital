@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reproductor de Pantalla</title>
+    <style>
+        body { margin: 0; background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+        #player-container {
+            width: 100vw; height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            background: radial-gradient(circle, #1a1a2e 0%, #0f0f1b 100%);
+        }
+        #content-viewer { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+        img, video { max-width: 100%; max-height: 100%; object-fit: contain; }
+        
+        /* Efecto Glassmorphism para el Reloj */
+        .overlay-clock {
+            position: absolute; bottom: 30px; right: 30px;
+            padding: 15px 25px; background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px); border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #00f2ff; font-size: 1.5rem; font-weight: bold;
+            text-shadow: 0 0 10px #00f2ff;
+        }
+        .fade-in { animation: fadeIn 1.2s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+    </style>
+</head>
+<body>
+
+<div id="player-container">
+    <div id="content-viewer">
+        <h2 style="color:white;">Cargando contenido...</h2>
+    </div>
+    <div class="overlay-clock" id="clock">00:00:00</div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9/app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9/database.js";
+
+    // CONFIGURACIÓN DE FIREBASE (Copia esto de tu consola de Firebase)
+    const firebaseConfig = {
+        apiKey: "TU_API_KEY",
+        authDomain: "TU_PROYECTO.firebaseapp.com",
+        databaseURL: "https://TU_PROYECTO.firebaseio.com",
+        projectId: "TU_PROYECTO",
+        storageBucket: "TU_PROYECTO.appspot.com",
+        messagingSenderId: "ID",
+        appId: "APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    
+    let playlist = [];
+    let currentIndex = 0;
+    let timer;
+
+    // Reloj en tiempo real
+    setInterval(() => {
+        document.getElementById('clock').innerText = new Date().toLocaleTimeString();
+    }, 1000);
+
+    // Escuchar la base de datos
+    const playlistRef = ref(db, 'screens/pantalla_main/playlist');
+    onValue(playlistRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            playlist = Object.values(data);
+            if (!timer) startPlayback(); 
+        }
+    });
+
+    function startPlayback() {
+        if (playlist.length === 0) return;
+        const container = document.getElementById('content-viewer');
+        const item = playlist[currentIndex];
+
+        container.innerHTML = ""; // Limpiar
+        
+        let element;
+        if (item.type === 'video') {
+            element = document.createElement('video');
+            element.src = item.url;
+            element.autoplay = true;
+            element.muted = true; // Necesario para autoplay en navegadores
+            element.classList.add('fade-in');
+        } else {
+            element = document.createElement('img');
+            element.src = item.url;
+            element.classList.add('fade-in');
+        }
+
+        container.appendChild(element);
+
+        // Ciclo de reproducción
+        timer = setTimeout(() => {
+            currentIndex = (currentIndex + 1) % playlist.length;
+            startPlayback();
+        }, item.duration * 1000);
+    }
+</script>
+</body>
+</html>
